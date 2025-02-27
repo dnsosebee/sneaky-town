@@ -8,6 +8,7 @@ export const SceneComponent = ({
   sceneOptions,
   onRender,
   onSceneReady,
+  id,
   ...rest
 }: {
   antialias: boolean;
@@ -17,6 +18,7 @@ export const SceneComponent = ({
   adaptToDeviceRatio?: boolean;
   sceneOptions?: any;
   rest?: any;
+  id?: string;
 }) => {
   const reactCanvas = useRef(null);
 
@@ -68,5 +70,7 @@ export const SceneComponent = ({
     onSceneReady,
   ]);
 
-  return <canvas ref={reactCanvas} {...rest} />;
+  return (
+    <canvas ref={reactCanvas} {...rest} id={id} className="w-full h-full" />
+  );
 };

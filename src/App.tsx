@@ -1,16 +1,10 @@
 "use client";
 
 import { useAuthActions } from "@convex-dev/auth/react";
-import {
-  Authenticated,
-  Unauthenticated,
-  useConvexAuth,
-  useMutation,
-  useQuery,
-} from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useState } from "react";
 import { api } from "../convex/_generated/api";
-import { MyScene } from "./scene";
+import { MyScene } from "./my-scene";
 
 export default function App() {
   return (
@@ -23,12 +17,13 @@ export default function App() {
         <h1 className="text-4xl font-bold text-center">
           Convex + React + Convex Auth
         </h1>
-        <Authenticated>
+        <MyScene />
+        {/* <Authenticated>
           <MyScene />
         </Authenticated>
         <Unauthenticated>
           <SignInForm />
-        </Unauthenticated>
+        </Unauthenticated> */}
       </main>
     </>
   );
