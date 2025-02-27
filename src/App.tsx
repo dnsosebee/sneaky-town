@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuthActions } from "@convex-dev/auth/react";
 import {
   Authenticated,
   Unauthenticated,
@@ -7,9 +8,9 @@ import {
   useMutation,
   useQuery,
 } from "convex/react";
-import { api } from "../convex/_generated/api";
-import { useAuthActions } from "@convex-dev/auth/react";
 import { useState } from "react";
+import { api } from "../convex/_generated/api";
+import { MyScene } from "./scene";
 
 export default function App() {
   return (
@@ -23,7 +24,7 @@ export default function App() {
           Convex + React + Convex Auth
         </h1>
         <Authenticated>
-          <Content />
+          <MyScene />
         </Authenticated>
         <Unauthenticated>
           <SignInForm />
@@ -147,7 +148,7 @@ function Content() {
         Numbers:{" "}
         {numbers?.length === 0
           ? "Click the button!"
-          : (numbers?.join(", ") ?? "...")}
+          : numbers?.join(", ") ?? "..."}
       </p>
       <p>
         Edit{" "}
