@@ -1,9 +1,14 @@
 import {
   ArcRotateCamera,
+  Color3,
+  DynamicTexture,
   HemisphericLight,
   type ISceneLoaderAsyncResult,
+  type Mesh,
+  MeshBuilder,
   type Scene,
   SceneLoader,
+  StandardMaterial,
   Vector3,
 } from "@babylonjs/core";
 import { registerBuiltInLoaders } from "@babylonjs/loaders/dynamic";
@@ -14,17 +19,26 @@ registerBuiltInLoaders();
 
 let camera: ArcRotateCamera | null = null;
 let meshCenter: Vector3 | null = null;
+const sceneObjects: Record<string, { mesh: Mesh; basePosition: Vector3 }> = {};
+
+export interface ObjectTransform {
+  position: { x: number; y: number; z: number };
+  rotation: number;
+  scale: { x: number; y: number; z: number };
+}
 
 interface MySceneProps {
   targetOffset: { x: number; y: number; z: number };
   cameraRadius: number;
   onInitialRadius?: (radius: number) => void;
+  objectTransforms: Record<string, ObjectTransform>;
 }
 
 export const MyScene = ({
   targetOffset,
   cameraRadius,
   onInitialRadius,
+  objectTransforms,
 }: MySceneProps) => {
   const [isLoading, setIsLoading] = useState(true);
 
@@ -53,11 +67,32 @@ export const MyScene = ({
     }
   }, [cameraRadius]);
 
+  useEffect(() => {
+    Object.entries(objectTransforms).forEach(([objectId, transform]) => {
+      const obj = sceneObjects[objectId];
+      if (obj) {
+        const { mesh, basePosition } = obj;
+        mesh.position = new Vector3(
+          basePosition.x + transform.position.x,
+          basePosition.y + transform.position.y,
+          basePosition.z + transform.position.z,
+        );
+        mesh.rotation.x = Math.PI / 2;
+        mesh.rotation.y = transform.rotation;
+        mesh.scaling = new Vector3(
+          transform.scale.x,
+          transform.scale.y,
+          transform.scale.z,
+        );
+      }
+    });
+  }, [objectTransforms]);
+
   const handleSceneReady = useCallback(
     (scene: Scene) => {
-      onSceneReady(scene, setIsLoading, onInitialRadius);
+      onSceneReady(scene, setIsLoading, onInitialRadius, objectTransforms);
     },
-    [onInitialRadius],
+    [onInitialRadius, objectTransforms],
   );
 
   const handleRender = useCallback(() => {}, []);
@@ -83,6 +118,7 @@ const onSceneReady = (
   scene: Scene,
   setIsLoading: (loading: boolean) => void,
   onInitialRadius?: (radius: number) => void,
+  objectTransforms?: Record<string, ObjectTransform>,
 ) => {
   camera = new ArcRotateCamera(
     "camera1",
@@ -94,8 +130,9 @@ const onSceneReady = (
   );
 
   camera.minZ = 0.1;
-  camera.lowerRadiusLimit = 0.3;
-  camera.upperRadiusLimit = 1.5;
+  camera.lowerRadiusLimit = 0.4;
+  camera.upperRadiusLimit = 1.6;
+  camera.upperBetaLimit = Math.PI / 2 - (27 * Math.PI) / 180;
 
   const canvas = scene.getEngine().getRenderingCanvas();
   camera.attachControl(canvas, true);
@@ -133,7 +170,7 @@ const onSceneReady = (
           },
         });
 
-        const targetOffset = new Vector3(2, -8, 0.3);
+        const targetOffset = new Vector3(1.98, -8.25, 0.33);
         const adjustedTarget = meshCenter.add(targetOffset);
 
         camera.target = adjustedTarget;
@@ -150,6 +187,72 @@ const onSceneReady = (
           y: adjustedTarget.y,
           z: adjustedTarget.z,
           radius: calculatedRadius,
+        });
+
+        const svgPlane = MeshBuilder.CreatePlane(
+          "svgPlane",
+          { width: 2, height: 2 },
+          scene,
+        );
+        const svgBasePosition = new Vector3(
+          adjustedTarget.x,
+          adjustedTarget.y + 1,
+          adjustedTarget.z,
+        );
+        svgPlane.position = svgBasePosition.clone();
+        svgPlane.rotation.x = Math.PI / 2;
+
+        const material = new StandardMaterial("svgMaterial", scene);
+
+        const textureSize = 4096;
+        const dynamicTexture = new DynamicTexture(
+          "svgDynamicTexture",
+          { width: textureSize, height: textureSize },
+          scene,
+          false,
+        );
+        dynamicTexture.anisotropicFilteringLevel = 16;
+
+        const img = new Image();
+        img.onload = () => {
+          const ctx = dynamicTexture.getContext();
+          ctx.clearRect(0, 0, textureSize, textureSize);
+          ctx.drawImage(img, 0, 0, textureSize, textureSize);
+          dynamicTexture.update();
+        };
+        img.src = "/models/board-but-only-drawings.svg";
+
+        material.diffuseTexture = dynamicTexture;
+        material.opacityTexture = dynamicTexture;
+        material.backFaceCulling = false;
+        material.specularColor = new Color3(0, 0, 0);
+        svgPlane.material = material;
+
+        sceneObjects["svgBoard"] = {
+          mesh: svgPlane,
+          basePosition: svgBasePosition,
+        };
+
+        const transform = objectTransforms?.["svgBoard"];
+        if (transform) {
+          svgPlane.position = new Vector3(
+            svgBasePosition.x + transform.position.x,
+            svgBasePosition.y + transform.position.y,
+            svgBasePosition.z + transform.position.z,
+          );
+          svgPlane.rotation.x = Math.PI / 2;
+          svgPlane.rotation.y = transform.rotation;
+          svgPlane.scaling = new Vector3(
+            transform.scale.x,
+            transform.scale.y,
+            transform.scale.z,
+          );
+        }
+
+        console.log("SVG plane created at:", {
+          x: svgPlane.position.x,
+          y: svgPlane.position.y,
+          z: svgPlane.position.z,
         });
       }
 
