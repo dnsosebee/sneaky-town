@@ -25,6 +25,7 @@ export interface ObjectTransform {
   position: { x: number; y: number; z: number };
   rotation: number;
   scale: { x: number; y: number; z: number };
+  hidden?: boolean;
 }
 
 interface MySceneProps {
@@ -72,6 +73,7 @@ export const MyScene = ({
       const obj = sceneObjects[objectId];
       if (obj) {
         const { mesh, basePosition } = obj;
+        mesh.isVisible = !(transform.hidden ?? false);
         mesh.position = new Vector3(
           basePosition.x + transform.position.x,
           basePosition.y + transform.position.y,
@@ -90,9 +92,9 @@ export const MyScene = ({
 
   const handleSceneReady = useCallback(
     (scene: Scene) => {
-      onSceneReady(scene, setIsLoading, onInitialRadius, objectTransforms);
+      onSceneReady(scene, setIsLoading, onInitialRadius);
     },
-    [onInitialRadius, objectTransforms],
+    [onInitialRadius],
   );
 
   const handleRender = useCallback(() => {}, []);
@@ -118,7 +120,6 @@ const onSceneReady = (
   scene: Scene,
   setIsLoading: (loading: boolean) => void,
   onInitialRadius?: (radius: number) => void,
-  objectTransforms?: Record<string, ObjectTransform>,
 ) => {
   camera = new ArcRotateCamera(
     "camera1",
@@ -232,22 +233,6 @@ const onSceneReady = (
           mesh: svgPlane,
           basePosition: svgBasePosition,
         };
-
-        const transform = objectTransforms?.["svgBoard"];
-        if (transform) {
-          svgPlane.position = new Vector3(
-            svgBasePosition.x + transform.position.x,
-            svgBasePosition.y + transform.position.y,
-            svgBasePosition.z + transform.position.z,
-          );
-          svgPlane.rotation.x = Math.PI / 2;
-          svgPlane.rotation.y = transform.rotation;
-          svgPlane.scaling = new Vector3(
-            transform.scale.x,
-            transform.scale.y,
-            transform.scale.z,
-          );
-        }
 
         console.log("SVG plane created at:", {
           x: svgPlane.position.x,

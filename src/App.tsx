@@ -24,6 +24,7 @@ export default function App() {
       position: { x: 0.0, y: -0.92, z: 0.0 },
       rotation: 1.567,
       scale: { x: 0.147, y: 0.131, z: 0.14 },
+      hidden: false,
     },
   });
 
@@ -158,6 +159,25 @@ export default function App() {
     [selectedObject],
   );
 
+  const toggleObjectHidden = useCallback(
+    (e?: React.MouseEvent) => {
+      e?.preventDefault();
+      e?.stopPropagation();
+      setObjectTransforms((prev) => {
+        const current = prev[selectedObject];
+        if (!current) return prev;
+        return {
+          ...prev,
+          [selectedObject]: {
+            ...current,
+            hidden: !(current.hidden ?? false),
+          },
+        };
+      });
+    },
+    [selectedObject],
+  );
+
   const resetObject = useCallback(() => {
     setObjectTransforms((prev) => ({
       ...prev,
@@ -165,6 +185,7 @@ export default function App() {
         position: { x: 0, y: 0, z: 0 },
         rotation: 0,
         scale: { x: 1, y: 1, z: 1 },
+        hidden: false,
       },
     }));
   }, [selectedObject]);
@@ -328,6 +349,22 @@ export default function App() {
                         </option>
                       ))}
                     </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-xs font-medium w-16">Visibility</div>
+                    <button
+                      type="button"
+                      className={`flex-1 ${
+                        objectTransforms[selectedObject]?.hidden
+                          ? "bg-red-500 hover:bg-red-600"
+                          : "bg-green-500 hover:bg-green-600"
+                      } text-white px-2 py-1 rounded text-xs`}
+                      onClick={toggleObjectHidden}
+                    >
+                      {objectTransforms[selectedObject]?.hidden
+                        ? "Hidden"
+                        : "Visible"}
+                    </button>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="text-xs font-medium w-16">X</div>
