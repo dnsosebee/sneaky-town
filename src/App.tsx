@@ -1,214 +1,195 @@
 "use client";
 
-import { useAuthActions } from "@convex-dev/auth/react";
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
-import { useState } from "react";
-import { api } from "../convex/_generated/api";
+import { useCallback, useEffect, useState } from "react";
 import { MyScene } from "./my-scene";
 
 export default function App() {
-  return (
-    <>
-      <header className="sticky top-0 z-10 bg-background p-4 border-b-2 border-slate-200 dark:border-slate-800 flex flex-row justify-between items-center">
-        Convex + React + Convex Auth
-        <SignOutButton />
-      </header>
-      <main className="p-8 flex flex-col gap-16">
-        <h1 className="text-4xl font-bold text-center">
-          Convex + React + Convex Auth
-        </h1>
-        <MyScene />
-        {/* <Authenticated>
-          <MyScene />
-        </Authenticated>
-        <Unauthenticated>
-          <SignInForm />
-        </Unauthenticated> */}
-      </main>
-    </>
-  );
-}
+  const [targetOffset, setTargetOffset] = useState({ x: 2, y: -8.2, z: 0.3 });
+  const [cameraRadius, setCameraRadius] = useState(15);
+  const [defaultRadius, setDefaultRadius] = useState(15);
+  const [devMode, setDevMode] = useState(false);
 
-function SignOutButton() {
-  const { isAuthenticated } = useConvexAuth();
-  const { signOut } = useAuthActions();
-  return (
-    <>
-      {isAuthenticated && (
-        <button
-          className="bg-slate-200 dark:bg-slate-800 text-foreground rounded-md px-2 py-1"
-          onClick={() => void signOut()}
-        >
-          Sign out
-        </button>
-      )}
-    </>
-  );
-}
+  const adjustOffset = useCallback((axis: "x" | "y" | "z", delta: number) => {
+    setTargetOffset((prev) => ({ ...prev, [axis]: prev[axis] + delta }));
+  }, []);
 
-function SignInForm() {
-  const { signIn } = useAuthActions();
-  const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
-  const [error, setError] = useState<string | null>(null);
+  const setOffsetValue = useCallback((axis: "x" | "y" | "z", value: string) => {
+    const numValue = parseFloat(value);
+    if (!Number.isNaN(numValue)) {
+      setTargetOffset((prev) => ({ ...prev, [axis]: numValue }));
+    }
+  }, []);
+
+  const adjustZoom = useCallback((delta: number) => {
+    setCameraRadius((prev) => Math.max(0.1, prev + delta));
+  }, []);
+
+  const setZoomValue = useCallback((value: string) => {
+    const numValue = parseFloat(value);
+    if (!Number.isNaN(numValue) && numValue >= 0.1) {
+      setCameraRadius(numValue);
+    }
+  }, []);
+
+  const handleInitialRadius = useCallback((radius: number) => {
+    setDefaultRadius(radius);
+    setCameraRadius(radius);
+  }, []);
+
+  const resetCamera = useCallback(() => {
+    setTargetOffset({ x: 2, y: -8, z: 0.3 });
+    setCameraRadius(defaultRadius);
+  }, [defaultRadius]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "d") {
+        e.preventDefault();
+        setDevMode((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   return (
-    <div className="flex flex-col gap-8 w-96 mx-auto">
-      <p>Log in to see the numbers</p>
-      <form
-        className="flex flex-col gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const formData = new FormData(e.target as HTMLFormElement);
-          formData.set("flow", flow);
-          void signIn("password", formData).catch((error) => {
-            setError(error.message);
-          });
+    <div className="w-full h-screen flex items-center justify-center bg-slate-900">
+      <div
+        className="relative"
+        style={{
+          aspectRatio: "5 / 3",
+          width: "min(100vw, calc(100vh * 5 / 3))",
+          height: "min(100vh, calc(100vw * 3 / 5))",
         }}
       >
-        <input
-          className="bg-background text-foreground rounded-md p-2 border-2 border-slate-200 dark:border-slate-800"
-          type="email"
-          name="email"
-          placeholder="Email"
+        <MyScene
+          targetOffset={targetOffset}
+          cameraRadius={cameraRadius}
+          onInitialRadius={handleInitialRadius}
         />
-        <input
-          className="bg-background text-foreground rounded-md p-2 border-2 border-slate-200 dark:border-slate-800"
-          type="password"
-          name="password"
-          placeholder="Password"
-        />
-        <button
-          className="bg-foreground text-background rounded-md"
-          type="submit"
-        >
-          {flow === "signIn" ? "Sign in" : "Sign up"}
-        </button>
-        <div className="flex flex-row gap-2">
-          <span>
-            {flow === "signIn"
-              ? "Don't have an account?"
-              : "Already have an account?"}
-          </span>
-          <span
-            className="text-foreground underline hover:no-underline cursor-pointer"
-            onClick={() => setFlow(flow === "signIn" ? "signUp" : "signIn")}
-          >
-            {flow === "signIn" ? "Sign up instead" : "Sign in instead"}
-          </span>
-        </div>
-        {error && (
-          <div className="bg-red-500/20 border-2 border-red-500/50 rounded-md p-2">
-            <p className="text-foreground font-mono text-xs">
-              Error signing in: {error}
-            </p>
+        {devMode && (
+          <div className="fixed top-4 left-4 bg-slate-100/95 dark:bg-slate-900/95 backdrop-blur-sm p-4 rounded-lg shadow-lg max-w-md z-20">
+            <h2 className="text-lg font-bold mb-4">Dev Panel</h2>
+            <div className="flex flex-col gap-4">
+              <div>
+                <h3 className="font-semibold mb-3 text-sm">
+                  Camera Positioning
+                </h3>
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="text-xs font-medium w-16">X</div>
+                    <button
+                      type="button"
+                      className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs"
+                      onClick={() => adjustOffset("x", -0.1)}
+                    >
+                      ←
+                    </button>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={targetOffset.x.toFixed(2)}
+                      onChange={(e) => setOffsetValue("x", e.target.value)}
+                      className="w-16 text-center bg-white dark:bg-slate-800 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 text-xs"
+                    />
+                    <button
+                      type="button"
+                      className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs"
+                      onClick={() => adjustOffset("x", 0.1)}
+                    >
+                      →
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-xs font-medium w-16">Y</div>
+                    <button
+                      type="button"
+                      className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs"
+                      onClick={() => adjustOffset("y", -0.1)}
+                    >
+                      ↓
+                    </button>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={targetOffset.y.toFixed(2)}
+                      onChange={(e) => setOffsetValue("y", e.target.value)}
+                      className="w-16 text-center bg-white dark:bg-slate-800 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 text-xs"
+                    />
+                    <button
+                      type="button"
+                      className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs"
+                      onClick={() => adjustOffset("y", 0.1)}
+                    >
+                      ↑
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-xs font-medium w-16">Z</div>
+                    <button
+                      type="button"
+                      className="bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded text-xs"
+                      onClick={() => adjustOffset("z", -0.1)}
+                    >
+                      ←
+                    </button>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={targetOffset.z.toFixed(2)}
+                      onChange={(e) => setOffsetValue("z", e.target.value)}
+                      className="w-16 text-center bg-white dark:bg-slate-800 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 text-xs"
+                    />
+                    <button
+                      type="button"
+                      className="bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded text-xs"
+                      onClick={() => adjustOffset("z", 0.1)}
+                    >
+                      →
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-xs font-medium w-16">Zoom</div>
+                    <button
+                      type="button"
+                      className="bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded text-xs"
+                      onClick={() => adjustZoom(-1)}
+                    >
+                      In
+                    </button>
+                    <input
+                      type="number"
+                      step="0.5"
+                      value={cameraRadius.toFixed(2)}
+                      onChange={(e) => setZoomValue(e.target.value)}
+                      className="w-16 text-center bg-white dark:bg-slate-800 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 text-xs"
+                    />
+                    <button
+                      type="button"
+                      className="bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded text-xs"
+                      onClick={() => adjustZoom(1)}
+                    >
+                      Out
+                    </button>
+                    <button
+                      type="button"
+                      className="bg-slate-500 hover:bg-slate-600 text-white px-2 py-1 rounded text-xs ml-auto"
+                      onClick={resetCamera}
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-slate-300 dark:border-slate-700">
+              <div className="text-xs text-slate-600 dark:text-slate-400">
+                Press Cmd+D to toggle dev panel
+              </div>
+            </div>
           </div>
         )}
-      </form>
-    </div>
-  );
-}
-
-function Content() {
-  const { viewer, numbers } =
-    useQuery(api.myFunctions.listNumbers, {
-      count: 10,
-    }) ?? {};
-  const addNumber = useMutation(api.myFunctions.addNumber);
-
-  if (viewer === undefined || numbers === undefined) {
-    return (
-      <div className="mx-auto">
-        <p>loading... (consider a loading skeleton)</p>
       </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-8 max-w-lg mx-auto">
-      <p>Welcome {viewer ?? "Anonymous"}!</p>
-      <p>
-        Click the button below and open this page in another window - this data
-        is persisted in the Convex cloud database!
-      </p>
-      <p>
-        <button
-          className="bg-foreground text-background text-sm px-4 py-2 rounded-md"
-          onClick={() => {
-            void addNumber({ value: Math.floor(Math.random() * 10) });
-          }}
-        >
-          Add a random number
-        </button>
-      </p>
-      <p>
-        Numbers:{" "}
-        {numbers?.length === 0
-          ? "Click the button!"
-          : numbers?.join(", ") ?? "..."}
-      </p>
-      <p>
-        Edit{" "}
-        <code className="text-sm font-bold font-mono bg-slate-200 dark:bg-slate-800 px-1 py-0.5 rounded-md">
-          convex/myFunctions.ts
-        </code>{" "}
-        to change your backend
-      </p>
-      <p>
-        Edit{" "}
-        <code className="text-sm font-bold font-mono bg-slate-200 dark:bg-slate-800 px-1 py-0.5 rounded-md">
-          src/App.tsx
-        </code>{" "}
-        to change your frontend
-      </p>
-      <div className="flex flex-col">
-        <p className="text-lg font-bold">Useful resources:</p>
-        <div className="flex gap-2">
-          <div className="flex flex-col gap-2 w-1/2">
-            <ResourceCard
-              title="Convex docs"
-              description="Read comprehensive documentation for all Convex features."
-              href="https://docs.convex.dev/home"
-            />
-            <ResourceCard
-              title="Stack articles"
-              description="Learn about best practices, use cases, and more from a growing
-            collection of articles, videos, and walkthroughs."
-              href="https://www.typescriptlang.org/docs/handbook/2/basic-types.html"
-            />
-          </div>
-          <div className="flex flex-col gap-2 w-1/2">
-            <ResourceCard
-              title="Templates"
-              description="Browse our collection of templates to get started quickly."
-              href="https://www.convex.dev/templates"
-            />
-            <ResourceCard
-              title="Discord"
-              description="Join our developer community to ask questions, trade tips & tricks,
-            and show off your projects."
-              href="https://www.convex.dev/community"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ResourceCard({
-  title,
-  description,
-  href,
-}: {
-  title: string;
-  description: string;
-  href: string;
-}) {
-  return (
-    <div className="flex flex-col gap-2 bg-slate-200 dark:bg-slate-800 p-4 rounded-md h-28 overflow-auto">
-      <a href={href} className="text-sm underline hover:no-underline">
-        {title}
-      </a>
-      <p className="text-xs">{description}</p>
     </div>
   );
 }

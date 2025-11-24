@@ -1,106 +1,162 @@
 import {
-  FreeCamera,
+  ArcRotateCamera,
   HemisphericLight,
-  MeshBuilder,
-  SceneLoader,
-  type Mesh,
+  type ISceneLoaderAsyncResult,
   type Scene,
+  SceneLoader,
+  Vector3,
 } from "@babylonjs/core";
-
-import { Vector3 } from "@babylonjs/core";
-import { useEffect, useRef } from "react";
+import { registerBuiltInLoaders } from "@babylonjs/loaders/dynamic";
+import { useCallback, useEffect, useState } from "react";
 import { SceneComponent } from "./scene-component";
 
-export const MyScene = () => {
-  // Use a ref to track scene-related resources
-  const sceneRef = useRef<{
-    box?: Mesh;
-    scene?: Scene;
-    importPromise?: Promise<any>;
-  }>({});
+registerBuiltInLoaders();
+
+let camera: ArcRotateCamera | null = null;
+let meshCenter: Vector3 | null = null;
+
+interface MySceneProps {
+  targetOffset: { x: number; y: number; z: number };
+  cameraRadius: number;
+  onInitialRadius?: (radius: number) => void;
+}
+
+export const MyScene = ({
+  targetOffset,
+  cameraRadius,
+  onInitialRadius,
+}: MySceneProps) => {
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     console.log("MyScene mounted");
     return () => {
       console.log("MyScene unmounting");
-      // Ensure any pending imports are noted as cancelled
-      sceneRef.current = {};
     };
   }, []);
 
-  const onSceneReady = (scene: Scene) => {
-    // Store scene reference
-    sceneRef.current.scene = scene;
-
-    // This creates and positions a free camera (non-mesh)
-    const camera = new FreeCamera("camera1", new Vector3(0, 5, -10), scene);
-
-    // This targets the camera to scene origin
-    camera.setTarget(Vector3.Zero());
-
-    const canvas = scene.getEngine().getRenderingCanvas();
-
-    // This attaches the camera to the canvas
-    camera.attachControl(canvas, true);
-
-    // This creates a light, aiming 0,1,0 - to the sky (non-mesh)
-    const light = new HemisphericLight("light", new Vector3(0, 1, 0), scene);
-
-    // Default intensity is 1. Let's dim the light a small amount
-    light.intensity = 0.7;
-
-    // Our built-in 'box' shape.
-    sceneRef.current.box = MeshBuilder.CreateBox("box", { size: 2 }, scene);
-
-    // Move the box upward 1/2 its height
-    sceneRef.current.box.position.y = 1;
-
-    // Our built-in 'ground' shape.
-    MeshBuilder.CreateGround("ground", { width: 6, height: 6 }, scene);
-
-    // Import the mesh
-    console.log("Starting mesh import...");
-    sceneRef.current.importPromise = SceneLoader.ImportMeshAsync(
-      null,
-      "https://raw.githubusercontent.com/CedricGuillemet/dump/master/",
-      "Halo_Believe.splat",
-      scene,
-    )
-      .then((result) => {
-        // Check if we still have a valid scene before proceeding
-        if (sceneRef.current.scene === scene) {
-          console.log("Mesh import successful", result);
-          result.meshes[0].position.y = 1.7;
-        }
-      })
-      .catch((error) => {
-        console.error("Mesh import failed:", error);
-        if (sceneRef.current.scene === scene) {
-          console.log("Scene status:", {
-            isDisposed: scene.isDisposed,
-            isReady: scene.isReady(),
-          });
-        }
-      });
-  };
-
-  const onRender = (scene: Scene) => {
-    const box = sceneRef.current.box;
-    if (box && !scene.isDisposed) {
-      const deltaTimeInMillis = scene.getEngine().getDeltaTime();
-      const rpm = 10;
-      box.rotation.y += (rpm / 60) * Math.PI * 2 * (deltaTimeInMillis / 1000);
+  useEffect(() => {
+    if (camera && meshCenter) {
+      const offset = new Vector3(
+        targetOffset.x,
+        targetOffset.y,
+        targetOffset.z,
+      );
+      const newTarget = meshCenter.add(offset);
+      camera.target = newTarget;
     }
-  };
+  }, [targetOffset]);
+
+  useEffect(() => {
+    if (camera) {
+      camera.radius = cameraRadius;
+    }
+  }, [cameraRadius]);
+
+  const handleSceneReady = useCallback(
+    (scene: Scene) => {
+      onSceneReady(scene, setIsLoading, onInitialRadius);
+    },
+    [onInitialRadius],
+  );
+
+  const handleRender = useCallback(() => {}, []);
 
   return (
-    <div>
+    <div className="relative w-full h-full">
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 z-10">
+          <div className="text-white text-xl">Loading model...</div>
+        </div>
+      )}
       <SceneComponent
         antialias
-        onSceneReady={onSceneReady}
-        onRender={onRender}
+        onSceneReady={handleSceneReady}
+        onRender={handleRender}
         id="my-scene"
       />
     </div>
   );
+};
+
+const onSceneReady = (
+  scene: Scene,
+  setIsLoading: (loading: boolean) => void,
+  onInitialRadius?: (radius: number) => void,
+) => {
+  camera = new ArcRotateCamera(
+    "camera1",
+    Math.PI / 2,
+    Math.PI / 3,
+    10,
+    Vector3.Zero(),
+    scene,
+  );
+
+  camera.minZ = 0.1;
+  camera.lowerRadiusLimit = 0.3;
+  camera.upperRadiusLimit = 1.5;
+
+  const canvas = scene.getEngine().getRenderingCanvas();
+  camera.attachControl(canvas, true);
+
+  const light = new HemisphericLight("light", new Vector3(0, 1, 0), scene);
+  light.intensity = 0.7;
+
+  console.log("Starting mesh import...");
+  SceneLoader.ImportMeshAsync(
+    "",
+    "/models/backyard-scene-and-board.ply",
+    undefined,
+    scene,
+  )
+    .then((result: ISceneLoaderAsyncResult) => {
+      console.log("Mesh import successful", result);
+
+      if (result.meshes.length > 0 && camera) {
+        const mesh = result.meshes[0];
+        const boundingInfo = mesh.getBoundingInfo();
+        const center = boundingInfo.boundingBox.centerWorld;
+        const min = boundingInfo.boundingBox.minimumWorld;
+        const max = boundingInfo.boundingBox.maximumWorld;
+
+        meshCenter = center.clone();
+
+        console.log("Bounding box info:", {
+          center: { x: center.x, y: center.y, z: center.z },
+          min: { x: min.x, y: min.y, z: min.z },
+          max: { x: max.x, y: max.y, z: max.z },
+          size: {
+            x: max.x - min.x,
+            y: max.y - min.y,
+            z: max.z - min.z,
+          },
+        });
+
+        const targetOffset = new Vector3(2, -8, 0.3);
+        const adjustedTarget = meshCenter.add(targetOffset);
+
+        camera.target = adjustedTarget;
+        const calculatedRadius =
+          boundingInfo.boundingBox.extendSize.length() * 2;
+        camera.radius = calculatedRadius;
+
+        if (onInitialRadius) {
+          onInitialRadius(calculatedRadius);
+        }
+
+        console.log("Camera target set to:", {
+          x: adjustedTarget.x,
+          y: adjustedTarget.y,
+          z: adjustedTarget.z,
+          radius: calculatedRadius,
+        });
+      }
+
+      setIsLoading(false);
+    })
+    .catch((error: Error) => {
+      console.error("Mesh import failed:", error);
+      setIsLoading(false);
+    });
 };
