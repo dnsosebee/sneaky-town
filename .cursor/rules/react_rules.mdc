@@ -1,0 +1,251 @@
+---
+globs: *.tsx
+alwaysApply: false
+---
+
+# React Best Practices and Common Pitfalls
+
+## Handling Optional Properties in State
+
+### Issue: Page Refreshes on State Updates with Optional Properties
+
+**Problem:**
+When adding optional properties to TypeScript state interfaces (e.g., `hidden?: boolean`), accessing these properties directly in JSX or state update functions can cause unexpected behavior or page refreshes if the property is `undefined`.
+
+**Symptoms:**
+
+- Full page refresh when clicking buttons that update optional properties
+- Inconsistent behavior when toggling boolean states
+- React re-rendering issues
+
+**Root Cause:**
+When optional properties are `undefined`, JavaScript's truthiness checks can cause issues:
+
+- `!undefined` evaluates to `true`, which may not be the intended default
+- Direct property access without null coalescing can lead to undefined behavior
+- React may trigger unnecessary re-renders when state values are inconsistent
+
+**Solution:**
+Always use null coalescing (`??`) or optional chaining (`?.`) when working with optional properties:
+
+```typescript
+// ❌ BAD - Can cause issues with undefined values
+const toggleHidden = () => {
+  setObject(prev => ({
+    ...prev,
+    hidden: !prev.hidden
+  }));
+};
+
+// ✅ GOOD - Explicitly handle undefined
+const toggleHidden = () => {
+  setObject(prev => ({
+    ...prev,
+    hidden: !(prev.hidden ?? false)
+  }));
+};
+
+// ❌ BAD - Direct property access in JSX
+<button onClick={toggle}>
+  {object.hidden ? "Hidden" : "Visible"}
+</button>
+
+// ✅ GOOD - Use optional chaining
+<button onClick={toggle}>
+  {object?.hidden ? "Hidden" : "Visible"}
+</button>
+
+// ✅ GOOD - Or use null coalescing in conditional logic
+<button onClick={toggle}>
+  {(object.hidden ?? false) ? "Hidden" : "Visible"}
+</button>
+```
+
+**Best Practice:**
+When adding optional boolean properties to existing state objects:
+
+1. Initialize them explicitly in the initial state (e.g., `hidden: false`)
+2. Always use `?? false` or `?? true` when reading optional boolean values
+3. Use optional chaining (`?.`) when accessing nested optional properties
+4. Consider making critical properties required instead of optional if they should always have a value
+
+## Button Types in React
+
+Always specify `type="button"` for buttons that should not submit forms:
+
+```typescript
+// ✅ GOOD - Explicit button type prevents form submission
+<button type="button" onClick={handleClick}>
+  Click me
+</button>
+
+// ❌ BAD - Default type is "submit" which can cause unexpected form submissions
+<button onClick={handleClick}>
+  Click me
+</button>
+```
+
+This is especially important in dev panels or control interfaces where buttons should never trigger navigation or form submission.
+
+## Debugging Full Page Refreshes
+
+When a button or interaction causes an unexpected full page refresh:
+
+1. **Add event handlers to prevent default behavior:**
+
+```typescript
+const handleClick = useCallback(
+  (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    // ... rest of handler
+  },
+  [deps],
+);
+```
+
+2. **Add console.log statements to trace execution:**
+
+```typescript
+const handleClick = useCallback(() => {
+  console.log("Handler called", {
+    /* context */
+  });
+  setState((prev) => {
+    console.log("Previous state:", prev);
+    const newState = {
+      /* new state */
+    };
+    console.log("New state:", newState);
+    return newState;
+  });
+}, [deps]);
+```
+
+3. **Check if the handler is called before the page reloads:**
+
+   - If logs appear before reload: The issue is likely in state update logic
+   - If no logs appear: The issue is likely a form submission or navigation event
+
+4. **Common causes:**
+   - Missing `type="button"` on button elements
+   - Throwing errors in state update functions
+   - Incorrect event propagation
+   - Form submission when button is inside a form
+   - Navigation triggered by links or window.location changes
+
+## Babylon.js Specific: Showing/Hiding Meshes
+
+When working with Babylon.js meshes, use the `isVisible` property, not `setEnabled`:
+
+```typescript
+// ✅ GOOD - Standard way to hide/show meshes
+mesh.isVisible = false;
+
+// ❌ BAD - setEnabled disables the entire node and its children
+mesh.setEnabled(false);
+```
+
+**Difference:**
+
+- `isVisible`: Controls rendering only, mesh still participates in scene calculations
+- `setEnabled`: Disables the entire node, including children and behaviors (more drastic)
+
+## Preventing Component Remounts with useCallback Dependencies
+
+**Critical Issue:** Scene or heavy components remounting on every state change
+
+**Problem:**
+When a callback passed to a child component includes state in its dependency array, the callback is recreated every time that state changes. If the child component treats the callback change as a reason to remount (like Babylon.js SceneComponent does), this causes expensive re-initialization.
+
+**Symptoms:**
+
+- Entire scenes reloading when toggling simple UI state
+- "Starting initialization..." logs appearing repeatedly
+- Performance degradation with state changes
+- Apparent "page refreshes" that are actually component remounts
+
+**Example of the Problem:**
+
+```typescript
+// ❌ BAD - Scene remounts every time objectTransforms changes
+const MyScene = ({ objectTransforms }) => {
+  const handleSceneReady = useCallback(
+    (scene) => {
+      initializeScene(scene, objectTransforms);
+    },
+    [objectTransforms], // ⚠️ This causes remounts!
+  );
+
+  // This useEffect already handles objectTransforms updates
+  useEffect(() => {
+    updateObjects(objectTransforms);
+  }, [objectTransforms]);
+
+  return <SceneComponent onSceneReady={handleSceneReady} />;
+};
+```
+
+**Solution:**
+
+Separate initialization from updates:
+
+1. Initialize scene ONCE without state dependencies
+2. Use `useEffect` to handle state updates after initialization
+
+```typescript
+// ✅ GOOD - Scene initializes once, useEffect handles updates
+const MyScene = ({ objectTransforms }) => {
+  const handleSceneReady = useCallback(
+    (scene) => {
+      initializeScene(scene); // No objectTransforms!
+    },
+    [], // Empty deps - only runs once per mount
+  );
+
+  // Separate effect handles objectTransforms updates
+  useEffect(() => {
+    updateObjects(objectTransforms);
+  }, [objectTransforms]);
+
+  return <SceneComponent onSceneReady={handleSceneReady} />;
+};
+```
+
+**Advanced: Using Refs to Access Current State Without Dependencies**
+
+Sometimes you need the current state value during initialization without adding it to dependencies. Use a ref:
+
+```typescript
+// ✅ BEST - Use ref to access current state without causing remounts
+const MyScene = ({ objectTransforms }) => {
+  const objectTransformsRef = useRef(objectTransforms);
+
+  // Keep ref updated
+  useEffect(() => {
+    objectTransformsRef.current = objectTransforms;
+  }, [objectTransforms]);
+
+  const handleSceneReady = useCallback(
+    (scene) => {
+      // Can access current value via ref
+      initializeScene(scene, objectTransformsRef.current);
+    },
+    [], // Empty deps - callback never changes!
+  );
+
+  // Separate effect still handles updates
+  useEffect(() => {
+    updateObjects(objectTransforms);
+  }, [objectTransforms]);
+
+  return <SceneComponent onSceneReady={handleSceneReady} />;
+};
+```
+
+**Key Principle:**
+
+- **Initialization** should happen ONCE with minimal dependencies
+- **Updates** should happen in `useEffect` hooks that respond to specific state changes
+- Use refs to access current state values in callbacks without adding dependencies
+- Don't pass frequently-changing state to initialization callbacks
