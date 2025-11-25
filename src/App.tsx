@@ -5,6 +5,14 @@ import { MyScene, type ObjectTransform } from "./my-scene";
 
 const OBJECT_REGISTRY = {
   svgBoard: "SVG Board",
+  stone1: "Stone 1",
+  stone2: "Stone 2",
+  stone3: "Stone 3",
+  stone4: "Stone 4",
+  stone5: "Stone 5",
+  stone6: "Stone 6",
+  stone7: "Stone 7",
+  stone8: "Stone 8",
 };
 
 export default function App() {
@@ -16,6 +24,7 @@ export default function App() {
   const [cameraRadius, setCameraRadius] = useState(15);
   const [defaultRadius, setDefaultRadius] = useState(15);
   const [devMode, setDevMode] = useState(false);
+  const [cameraLimitsEnabled, setCameraLimitsEnabled] = useState(true);
   const [selectedObject, setSelectedObject] = useState<string>("svgBoard");
   const [objectTransforms, setObjectTransforms] = useState<
     Record<string, ObjectTransform>
@@ -24,6 +33,54 @@ export default function App() {
       position: { x: 0.0, y: -0.92, z: 0.0 },
       rotation: 1.567,
       scale: { x: 0.147, y: 0.131, z: 0.14 },
+      hidden: false,
+    },
+    stone1: {
+      position: { x: 0.07, y: -0.044, z: 0.116 },
+      rotation: 0.0,
+      scale: { x: 1, y: 1, z: 1 },
+      hidden: false,
+    },
+    stone2: {
+      position: { x: 0.07, y: -0.044, z: 0.116 },
+      rotation: 0.0,
+      scale: { x: 1, y: 1, z: 1 },
+      hidden: false,
+    },
+    stone3: {
+      position: { x: 0.07, y: -0.044, z: 0.116 },
+      rotation: 0.0,
+      scale: { x: 1, y: 1, z: 1 },
+      hidden: false,
+    },
+    stone4: {
+      position: { x: 0.07, y: -0.044, z: 0.116 },
+      rotation: 0.0,
+      scale: { x: 1, y: 1, z: 1 },
+      hidden: false,
+    },
+    stone5: {
+      position: { x: 0.07, y: -0.044, z: 0.116 },
+      rotation: 0.0,
+      scale: { x: 1, y: 1, z: 1 },
+      hidden: false,
+    },
+    stone6: {
+      position: { x: 0.07, y: -0.044, z: 0.116 },
+      rotation: 0.0,
+      scale: { x: 1, y: 1, z: 1 },
+      hidden: false,
+    },
+    stone7: {
+      position: { x: 0.07, y: -0.044, z: 0.116 },
+      rotation: 0.0,
+      scale: { x: 1, y: 1, z: 1 },
+      hidden: false,
+    },
+    stone8: {
+      position: { x: 0.07, y: -0.044, z: 0.116 },
+      rotation: 0.0,
+      scale: { x: 1, y: 1, z: 1 },
       hidden: false,
     },
   });
@@ -59,6 +116,12 @@ export default function App() {
     setTargetOffset({ x: 1.98, y: -8.25, z: 0.33 });
     setCameraRadius(defaultRadius);
   }, [defaultRadius]);
+
+  const toggleCameraLimits = useCallback((e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    setCameraLimitsEnabled((prev) => !prev);
+  }, []);
 
   const adjustObjectPosition = useCallback(
     (axis: "x" | "y" | "z", delta: number) => {
@@ -132,7 +195,7 @@ export default function App() {
           ...prev[selectedObject],
           scale: {
             ...prev[selectedObject].scale,
-            [axis]: Math.max(0.01, prev[selectedObject].scale[axis] + delta),
+            [axis]: Math.max(0.001, prev[selectedObject].scale[axis] + delta),
           },
         },
       }));
@@ -216,6 +279,8 @@ export default function App() {
           cameraRadius={cameraRadius}
           onInitialRadius={handleInitialRadius}
           objectTransforms={objectTransforms}
+          devMode={devMode}
+          cameraLimitsEnabled={cameraLimitsEnabled}
         />
         {devMode && (
           <div className="fixed top-4 left-4 bg-slate-100/95 dark:bg-slate-900/95 backdrop-blur-sm p-4 rounded-lg shadow-lg max-w-md z-20">
@@ -227,17 +292,31 @@ export default function App() {
                 </h3>
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-2">
+                    <div className="text-xs font-medium w-16">Limits</div>
+                    <button
+                      type="button"
+                      className={`flex-1 ${
+                        cameraLimitsEnabled
+                          ? "bg-green-500 hover:bg-green-600"
+                          : "bg-red-500 hover:bg-red-600"
+                      } text-white px-2 py-1 rounded text-xs`}
+                      onClick={toggleCameraLimits}
+                    >
+                      {cameraLimitsEnabled ? "Enabled" : "Disabled"}
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <div className="text-xs font-medium w-16">X</div>
                     <button
                       type="button"
                       className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => adjustOffset("x", -0.01)}
+                      onClick={() => adjustOffset("x", -0.001)}
                     >
                       ←
                     </button>
                     <input
                       type="number"
-                      step="0.01"
+                      step="0.001"
                       value={targetOffset.x.toFixed(3)}
                       onChange={(e) => setOffsetValue("x", e.target.value)}
                       className="w-20 text-center bg-white dark:bg-slate-800 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 text-xs"
@@ -245,7 +324,7 @@ export default function App() {
                     <button
                       type="button"
                       className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => adjustOffset("x", 0.01)}
+                      onClick={() => adjustOffset("x", 0.001)}
                     >
                       →
                     </button>
@@ -255,13 +334,13 @@ export default function App() {
                     <button
                       type="button"
                       className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => adjustOffset("y", -0.01)}
+                      onClick={() => adjustOffset("y", -0.001)}
                     >
                       ↓
                     </button>
                     <input
                       type="number"
-                      step="0.01"
+                      step="0.001"
                       value={targetOffset.y.toFixed(3)}
                       onChange={(e) => setOffsetValue("y", e.target.value)}
                       className="w-20 text-center bg-white dark:bg-slate-800 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 text-xs"
@@ -269,7 +348,7 @@ export default function App() {
                     <button
                       type="button"
                       className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => adjustOffset("y", 0.01)}
+                      onClick={() => adjustOffset("y", 0.001)}
                     >
                       ↑
                     </button>
@@ -279,13 +358,13 @@ export default function App() {
                     <button
                       type="button"
                       className="bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => adjustOffset("z", -0.01)}
+                      onClick={() => adjustOffset("z", -0.001)}
                     >
                       ←
                     </button>
                     <input
                       type="number"
-                      step="0.01"
+                      step="0.001"
                       value={targetOffset.z.toFixed(3)}
                       onChange={(e) => setOffsetValue("z", e.target.value)}
                       className="w-20 text-center bg-white dark:bg-slate-800 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 text-xs"
@@ -293,7 +372,7 @@ export default function App() {
                     <button
                       type="button"
                       className="bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => adjustOffset("z", 0.01)}
+                      onClick={() => adjustOffset("z", 0.001)}
                     >
                       →
                     </button>
@@ -309,7 +388,7 @@ export default function App() {
                     </button>
                     <input
                       type="number"
-                      step="0.01"
+                      step="0.001"
                       value={cameraRadius.toFixed(3)}
                       onChange={(e) => setZoomValue(e.target.value)}
                       className="w-20 text-center bg-white dark:bg-slate-800 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 text-xs"
@@ -371,13 +450,13 @@ export default function App() {
                     <button
                       type="button"
                       className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => adjustObjectPosition("x", -0.01)}
+                      onClick={() => adjustObjectPosition("x", -0.001)}
                     >
                       ←
                     </button>
                     <input
                       type="number"
-                      step="0.01"
+                      step="0.001"
                       value={objectTransforms[
                         selectedObject
                       ].position.x.toFixed(3)}
@@ -389,7 +468,7 @@ export default function App() {
                     <button
                       type="button"
                       className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => adjustObjectPosition("x", 0.01)}
+                      onClick={() => adjustObjectPosition("x", 0.001)}
                     >
                       →
                     </button>
@@ -399,13 +478,13 @@ export default function App() {
                     <button
                       type="button"
                       className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => adjustObjectPosition("y", -0.01)}
+                      onClick={() => adjustObjectPosition("y", -0.001)}
                     >
                       ↓
                     </button>
                     <input
                       type="number"
-                      step="0.01"
+                      step="0.001"
                       value={objectTransforms[
                         selectedObject
                       ].position.y.toFixed(3)}
@@ -417,7 +496,7 @@ export default function App() {
                     <button
                       type="button"
                       className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => adjustObjectPosition("y", 0.01)}
+                      onClick={() => adjustObjectPosition("y", 0.001)}
                     >
                       ↑
                     </button>
@@ -427,13 +506,13 @@ export default function App() {
                     <button
                       type="button"
                       className="bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => adjustObjectPosition("z", -0.01)}
+                      onClick={() => adjustObjectPosition("z", -0.001)}
                     >
                       ←
                     </button>
                     <input
                       type="number"
-                      step="0.01"
+                      step="0.001"
                       value={objectTransforms[
                         selectedObject
                       ].position.z.toFixed(3)}
@@ -445,7 +524,7 @@ export default function App() {
                     <button
                       type="button"
                       className="bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => adjustObjectPosition("z", 0.01)}
+                      onClick={() => adjustObjectPosition("z", 0.001)}
                     >
                       →
                     </button>
@@ -455,13 +534,13 @@ export default function App() {
                     <button
                       type="button"
                       className="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => adjustObjectRotation(-0.01)}
+                      onClick={() => adjustObjectRotation(-0.001)}
                     >
                       ↺
                     </button>
                     <input
                       type="number"
-                      step="0.01"
+                      step="0.001"
                       value={objectTransforms[selectedObject].rotation.toFixed(
                         3,
                       )}
@@ -471,7 +550,7 @@ export default function App() {
                     <button
                       type="button"
                       className="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => adjustObjectRotation(0.01)}
+                      onClick={() => adjustObjectRotation(0.001)}
                     >
                       ↻
                     </button>
@@ -481,13 +560,13 @@ export default function App() {
                     <button
                       type="button"
                       className="bg-pink-500 hover:bg-pink-600 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => adjustObjectScale("x", -0.01)}
+                      onClick={() => adjustObjectScale("x", -0.001)}
                     >
                       −
                     </button>
                     <input
                       type="number"
-                      step="0.01"
+                      step="0.001"
                       value={objectTransforms[selectedObject].scale.x.toFixed(
                         3,
                       )}
@@ -497,7 +576,7 @@ export default function App() {
                     <button
                       type="button"
                       className="bg-pink-500 hover:bg-pink-600 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => adjustObjectScale("x", 0.01)}
+                      onClick={() => adjustObjectScale("x", 0.001)}
                     >
                       +
                     </button>
@@ -507,13 +586,13 @@ export default function App() {
                     <button
                       type="button"
                       className="bg-pink-500 hover:bg-pink-600 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => adjustObjectScale("y", -0.01)}
+                      onClick={() => adjustObjectScale("y", -0.001)}
                     >
                       −
                     </button>
                     <input
                       type="number"
-                      step="0.01"
+                      step="0.001"
                       value={objectTransforms[selectedObject].scale.y.toFixed(
                         3,
                       )}
@@ -523,7 +602,7 @@ export default function App() {
                     <button
                       type="button"
                       className="bg-pink-500 hover:bg-pink-600 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => adjustObjectScale("y", 0.01)}
+                      onClick={() => adjustObjectScale("y", 0.001)}
                     >
                       +
                     </button>
@@ -533,13 +612,13 @@ export default function App() {
                     <button
                       type="button"
                       className="bg-pink-500 hover:bg-pink-600 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => adjustObjectScale("z", -0.01)}
+                      onClick={() => adjustObjectScale("z", -0.001)}
                     >
                       −
                     </button>
                     <input
                       type="number"
-                      step="0.01"
+                      step="0.001"
                       value={objectTransforms[selectedObject].scale.z.toFixed(
                         3,
                       )}
@@ -549,7 +628,7 @@ export default function App() {
                     <button
                       type="button"
                       className="bg-pink-500 hover:bg-pink-600 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => adjustObjectScale("z", 0.01)}
+                      onClick={() => adjustObjectScale("z", 0.001)}
                     >
                       +
                     </button>

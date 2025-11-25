@@ -20,6 +20,7 @@ registerBuiltInLoaders();
 let camera: ArcRotateCamera | null = null;
 let meshCenter: Vector3 | null = null;
 const sceneObjects: Record<string, { mesh: Mesh; basePosition: Vector3 }> = {};
+let axesMeshes: Mesh[] = [];
 
 export interface ObjectTransform {
   position: { x: number; y: number; z: number };
@@ -33,6 +34,8 @@ interface MySceneProps {
   cameraRadius: number;
   onInitialRadius?: (radius: number) => void;
   objectTransforms: Record<string, ObjectTransform>;
+  devMode: boolean;
+  cameraLimitsEnabled: boolean;
 }
 
 export const MyScene = ({
@@ -40,6 +43,8 @@ export const MyScene = ({
   cameraRadius,
   onInitialRadius,
   objectTransforms,
+  devMode,
+  cameraLimitsEnabled,
 }: MySceneProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const objectTransformsRef = useRef(objectTransforms);
@@ -54,6 +59,28 @@ export const MyScene = ({
       console.log("MyScene unmounting");
     };
   }, []);
+
+  useEffect(() => {
+    axesMeshes.forEach((mesh) => {
+      mesh.isVisible = devMode;
+    });
+  }, [devMode]);
+
+  useEffect(() => {
+    if (camera) {
+      if (cameraLimitsEnabled) {
+        camera.minZ = 0.1;
+        camera.lowerRadiusLimit = 0.4;
+        camera.upperRadiusLimit = 1.6;
+        camera.upperBetaLimit = Math.PI / 2 - (27 * Math.PI) / 180;
+      } else {
+        camera.minZ = 0;
+        camera.lowerRadiusLimit = 0;
+        camera.upperRadiusLimit = Number.MAX_VALUE;
+        camera.upperBetaLimit = Math.PI;
+      }
+    }
+  }, [cameraLimitsEnabled]);
 
   useEffect(() => {
     if (camera && meshCenter) {
@@ -84,13 +111,24 @@ export const MyScene = ({
           basePosition.y + transform.position.y,
           basePosition.z + transform.position.z,
         );
-        mesh.rotation.x = Math.PI / 2;
-        mesh.rotation.y = transform.rotation;
-        mesh.scaling = new Vector3(
-          transform.scale.x,
-          transform.scale.y,
-          transform.scale.z,
-        );
+
+        if (objectId.startsWith("stone")) {
+          mesh.rotation.x = 0;
+          mesh.rotation.y = transform.rotation;
+          mesh.scaling = new Vector3(
+            transform.scale.x * 0.001,
+            transform.scale.y * 0.001,
+            transform.scale.z * 0.001,
+          );
+        } else {
+          mesh.rotation.x = Math.PI / 2;
+          mesh.rotation.y = transform.rotation;
+          mesh.scaling = new Vector3(
+            transform.scale.x,
+            transform.scale.y,
+            transform.scale.z,
+          );
+        }
       }
     });
   }, [objectTransforms]);
@@ -142,15 +180,59 @@ const onSceneReady = (
   );
 
   camera.minZ = 0.1;
-  camera.lowerRadiusLimit = 0.4;
+  camera.lowerRadiusLimit = 0.45;
   camera.upperRadiusLimit = 1.6;
   camera.upperBetaLimit = Math.PI / 2 - (27 * Math.PI) / 180;
+  camera.panningSensibility = 0;
 
   const canvas = scene.getEngine().getRenderingCanvas();
   camera.attachControl(canvas, true);
 
   const light = new HemisphericLight("light", new Vector3(0, 1, 0), scene);
   light.intensity = 0.7;
+
+  const axisLength = 0.5;
+  const axisThickness = 0.01;
+
+  const xAxis = MeshBuilder.CreateCylinder(
+    "xAxis",
+    { height: axisLength, diameter: axisThickness },
+    scene,
+  );
+  xAxis.rotation.z = Math.PI / 2;
+  xAxis.position.x = axisLength / 2;
+  const xMaterial = new StandardMaterial("xAxisMaterial", scene);
+  xMaterial.diffuseColor = new Color3(1, 0, 0);
+  xMaterial.emissiveColor = new Color3(0.5, 0, 0);
+  xAxis.material = xMaterial;
+
+  const yAxis = MeshBuilder.CreateCylinder(
+    "yAxis",
+    { height: axisLength, diameter: axisThickness },
+    scene,
+  );
+  yAxis.position.y = axisLength / 2;
+  const yMaterial = new StandardMaterial("yAxisMaterial", scene);
+  yMaterial.diffuseColor = new Color3(0, 1, 0);
+  yMaterial.emissiveColor = new Color3(0, 0.5, 0);
+  yAxis.material = yMaterial;
+
+  const zAxis = MeshBuilder.CreateCylinder(
+    "zAxis",
+    { height: axisLength, diameter: axisThickness },
+    scene,
+  );
+  zAxis.rotation.x = Math.PI / 2;
+  zAxis.position.z = axisLength / 2;
+  const zMaterial = new StandardMaterial("zAxisMaterial", scene);
+  zMaterial.diffuseColor = new Color3(0, 0, 1);
+  zMaterial.emissiveColor = new Color3(0, 0, 0.5);
+  zAxis.material = zMaterial;
+
+  axesMeshes = [xAxis, yAxis, zAxis];
+  axesMeshes.forEach((mesh) => {
+    mesh.isVisible = false;
+  });
 
   console.log("Starting mesh import...");
   SceneLoader.ImportMeshAsync(
@@ -266,6 +348,72 @@ const onSceneReady = (
           x: svgPlane.position.x,
           y: svgPlane.position.y,
           z: svgPlane.position.z,
+        });
+
+        const stoneIds = [
+          "stone1",
+          "stone2",
+          "stone3",
+          "stone4",
+          "stone5",
+          "stone6",
+          "stone7",
+          "stone8",
+        ];
+
+        stoneIds.forEach((stoneId) => {
+          SceneLoader.ImportMeshAsync(
+            "",
+            "/models/single_stone.stl",
+            undefined,
+            scene,
+          )
+            .then((stoneResult: ISceneLoaderAsyncResult) => {
+              console.log(`${stoneId} mesh import successful`, stoneResult);
+
+              if (stoneResult.meshes.length > 0) {
+                const stoneMesh = stoneResult.meshes[0] as Mesh;
+                const stoneBasePosition = new Vector3(
+                  adjustedTarget.x,
+                  adjustedTarget.y + 0.1,
+                  adjustedTarget.z,
+                );
+                stoneMesh.position = stoneBasePosition.clone();
+                stoneMesh.rotation.x = 0;
+                stoneMesh.scaling = new Vector3(0.001, 0.001, 0.001);
+
+                sceneObjects[stoneId] = {
+                  mesh: stoneMesh,
+                  basePosition: stoneBasePosition,
+                };
+
+                const stoneTransform = objectTransforms?.[stoneId];
+                if (stoneTransform) {
+                  stoneMesh.position = new Vector3(
+                    stoneBasePosition.x + stoneTransform.position.x,
+                    stoneBasePosition.y + stoneTransform.position.y,
+                    stoneBasePosition.z + stoneTransform.position.z,
+                  );
+                  stoneMesh.rotation.x = 0;
+                  stoneMesh.rotation.y = stoneTransform.rotation;
+                  stoneMesh.scaling = new Vector3(
+                    stoneTransform.scale.x * 0.001,
+                    stoneTransform.scale.y * 0.001,
+                    stoneTransform.scale.z * 0.001,
+                  );
+                  stoneMesh.isVisible = !(stoneTransform.hidden ?? false);
+                }
+
+                console.log(`${stoneId} mesh created at:`, {
+                  x: stoneMesh.position.x,
+                  y: stoneMesh.position.y,
+                  z: stoneMesh.position.z,
+                });
+              }
+            })
+            .catch((error: Error) => {
+              console.error(`${stoneId} mesh import failed:`, error);
+            });
         });
       }
 
